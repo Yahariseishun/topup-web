@@ -3,28 +3,20 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>ระบบเติมเครดิตอัตโนมัติด้วยสลิป OCR</title>
+<title>เติมเครดิตด้วยสลิป (OCR)</title>
 <style>
   body{font-family:Arial, sans-serif;max-width:600px;margin:20px auto;padding:10px}
   input,button{width:100%;padding:10px;margin:8px 0;font-size:16px}
   #result{margin-top:12px;padding:10px;border:1px solid #ddd;border-radius:6px;display:none}
   #preview img{max-width:100%;height:auto}
   .muted{color:#666;font-size:14px}
-  #creditBox{
-    background:#f2f2f2;padding:15px;border-radius:8px;margin-top:10px;
-    font-size:18px;
-  }
 </style>
 </head>
 <body>
-
-  <h2>เติมเครดิตด้วยการอัปโหลดสลิป (OCR)</h2>
-
-  <!-- แสดงเครดิต -->
-  <div id="creditBox">เครดิตของคุณ: <b id="credit">-</b> บาท</div>
+  <h2>เติมเครดิตด้วยการอัปโหลดสลิป</h2>
 
   <label>ยูสเซอร์เนม</label>
-  <input id="username" placeholder="user001" oninput="fetchCredit()">
+  <input id="username" placeholder="user001">
 
   <label>จำนวนเงินที่ต้องการเติม (บาท)</label>
   <input id="amount" type="number" placeholder="150">
@@ -41,33 +33,15 @@
 
   <div id="result"></div>
 
-  <!-- OCR -->
+  <!-- Tesseract.js -->
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4.1.1/dist/tesseract.min.js"></script>
 
   <script>
-
-  /* ---------- CONFIG ---------- */
-  const API_URL_GAS = "https://script.google.com/macros/s/AKfycbwVua7lO1khYVdpB6Ccg5wIN_xeFM98r1RyQix9VRXoYO2jQ6zZkq5SGSM4ezsacvXy/exec";
+  // ====== CONFIG (แก้ลิงก์ตรงนี้!) ======
+  const API_URL_GAS = "https://script.google.com/macros/s/AKfycbwHAFPOPO4DrDYU04NWBEMdysWESDE0wNJD2N65hok-UNdSweBr8o8j7vhngrjg5OaA/exec";
   const SECRET = "yahari";
 
-
-  /* ===== ดึงเครดิตผู้ใช้ ===== */
-  async function fetchCredit(){
-    const u = document.getElementById('username').value.trim();
-    if (!u) return;
-
-    const resp = await fetch(API_URL_GAS + "?action=get_credit&username=" + encodeURIComponent(u));
-    const data = await resp.json();
-
-    if (data.credit !== undefined){
-      document.getElementById('credit').innerText = data.credit;
-    } else {
-      document.getElementById('credit').innerText = "-";
-    }
-  }
-
-
-  /* ===== ช่วยแปลงไฟล์ ===== */
+  // ===== Helpers =====
   function toBase64(file) {
     return new Promise((res, rej) => {
       const reader = new FileReader();
@@ -80,26 +54,35 @@
   function parseAmountFromText(text) {
     const matches = text.match(/([0-9]{1,3}(?:[,\s][0-9]{3})*(?:\.[0-9]+)?|\d+(?:\.\d+)?)/g);
     if (!matches) return null;
-    const nums = matches.map(s => Number(s.replace(/\s/g,'').replace(/,/g,'')));
-    nums.sort((a,b)=>b-a);
+
+    const nums = matches.map(s => {
+      const clean = s.replace(/\s/g,'').replace(/,/g,'');
+      return Number(clean);
+    }).filter(n => !isNaN(n));
+
+    if (!nums.length) return null;
+
+    nums.sort((a,b) => b - a);
     return nums[0];
   }
 
-
-  /* ===== ประมวลผลสลิป OCR ===== */
   async function processSlip(){
     const btn = document.getElementById('btn');
     btn.disabled = true;
-    btn.innerText = "กำลังตรวจสอบสลิป...";
+    btn.innerText = "กำลังประมวลผล...";
 
     const username = document.getElementById('username').value.trim();
-    const amount = Number(document.getElementById('amount').value);
+    const amountInput = Number(document.getElementById('amount').value);
     const file = document.getElementById('file').files[0];
-    const resultEl = document.getElementById('result');
 
-    if (!username || !amount || !file){
-      alert("กรุณากรอกข้อมูลให้ครบ");
-      btn.disabled=false; btn.innerText="ตรวจสลิปและเติมเครดิต";
+    const resultEl = document.getElementById('result');
+    resultEl.style.display = 'none';
+    resultEl.innerHTML = '';
+
+    if (!username || !amountInput || !file) {
+      alert("กรุณากรอก username, amount และอัปโหลดรูป");
+      btn.disabled = false;
+      btn.innerText = "ตรวจสลิปและเติมเครดิต";
       return;
     }
 
@@ -108,70 +91,68 @@
     imgWrap.innerHTML = '';
     const img = document.createElement('img');
     img.src = URL.createObjectURL(file);
+    img.onload = () => URL.revokeObjectURL(img.src);
     imgWrap.appendChild(img);
     document.getElementById('preview').style.display = 'block';
 
-    try{
+    try {
       // OCR
       const worker = Tesseract.createWorker();
       await worker.load();
-      await worker.loadLanguage('eng+tha');
-      await worker.initialize('eng+tha');
-      const { data:{ text } } = await worker.recognize(file);
+      await worker.loadLanguage("eng+tha");
+      await worker.initialize("eng+tha");
+      const { data:{text} } = await worker.recognize(file);
       await worker.terminate();
 
-      const found = parseAmountFromText(text);
+      const found = parseAmountFromText(text || "");
 
-      if (!found){
-        resultEl.style.display="block";
-        resultEl.innerHTML = "<span style='color:red'>ไม่พบยอดเงินในสลิป</span>";
+      if (!found) {
+        resultEl.style.display = 'block';
+        resultEl.innerHTML = "<div style='color:red'>ไม่พบยอดเงินในสลิป</div>";
         btn.disabled=false; btn.innerText="ตรวจสลิปและเติมเครดิต";
         return;
       }
 
-      if (Math.abs(found - amount) > 0.99){
-        resultEl.style.display="block";
-        resultEl.innerHTML = `
-          <span style='color:red'>ยอดในสลิป (${found}) ไม่ตรงกับยอดที่กรอก (${amount})</span>
-        `;
+      if (Math.abs(found - amountInput) > 0.99) {
+        resultEl.style.display='block';
+        resultEl.innerHTML = `<div style='color:red'>ยอดไม่ตรง: OCR ${found} ≠ ${amountInput}</div>`;
         btn.disabled=false; btn.innerText="ตรวจสลิปและเติมเครดิต";
         return;
       }
 
-      // ส่งไปที่ GAS
+      // ส่งไป GAS
       const payload = {
         secret: SECRET,
         action: "topup",
         username: username,
-        amount: amount,
+        amount: amountInput,
         ocrText: text
       };
 
-      const resp = await fetch(API_URL_GAS,{
-        method:"POST",
-        headers:{"Content-Type":"application/json"},
+      const resp = await fetch(API_URL_GAS, {
+        method: "POST",
+        headers: {"Content-Type":"application/json"},
         body: JSON.stringify(payload)
       });
 
-      const json = await resp.json();
-      if (json.error){
-        resultEl.style.display="block";
-        resultEl.innerHTML = `<span style='color:red'>ERROR: ${json.error}</span>`;
+      const resJson = await resp.json();
+
+      if (resJson.error) {
+        resultEl.style.display = 'block';
+        resultEl.innerHTML = `<div style="color:red">Server error: ${resJson.error}</div>`;
       } else {
-        resultEl.style.display="block";
-        resultEl.innerHTML = `<span style='color:green'>เติมสำเร็จ +${amount} เครดิต</span>`;
-        fetchCredit(); // อัปเดตเครดิตใหม่
+        resultEl.style.display = 'block';
+        resultEl.innerHTML = `<div style="color:green">เติมสำเร็จ: ${amountInput} บาท<br>ผู้ใช้: ${username}</div>`;
       }
 
-    }catch(err){
-      resultEl.style.display="block";
-      resultEl.innerHTML = `Error: ${err.message}`;
+    } catch (err) {
+      resultEl.style.display = 'block';
+      resultEl.innerHTML = `<div style="color:red">Error: ${err.message}</div>`;
     }
 
-    btn.disabled=false;
-    btn.innerText="ตรวจสลิปและเติมเครดิต";
+    btn.disabled = false;
+    btn.innerText = "ตรวจสลิปและเติมเครดิต";
   }
   </script>
-
 </body>
 </html>
