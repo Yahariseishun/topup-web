@@ -1,87 +1,33 @@
-<!DOCTYPE html>
-<html lang="th">
-<head>
-<meta charset="UTF-8">
-<title>เติมเครดิตอัตโนมัติ</title>
-<style>
-    body {
-        font-family: Arial, sans-serif;
-        padding: 20px;
-        max-width: 400px;
-        margin: auto;
-        text-align: center;
-    }
-    input, button {
-        width: 100%;
-        padding: 10px;
-        margin: 10px 0;
-        font-size: 16px;
-    }
-    #result {
-        padding: 15px;
-        margin-top: 15px;
-        border: 1px solid #ccc;
-        display: none;
-        text-align: left;
-    }
-</style>
-</head>
-<body>
+const express = require("express");
+const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
+const app = express();
+app.use(express.json());
 
-<h2>เติมเครดิตอัตโนมัติ</h2>
+const API_URL = "https://script.google.com/macros/s/AKfycbwQrMddICJXl_83X8TLe4hTD0LBcrbwRRp5hMHj9GNr8pcM1Oqm0ZGxWtk4H-6dFUXc/exec";
 
-<label>ยูสเซอร์เนม:</label>
-<input id="username" type="text" placeholder="กรอกยูสเซอร์">
+app.use((req, res, next) => {
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+    next();
+});
 
-<button onclick="createRequest()">สร้างยอดพร้อมโอน</button>
-
-<div id="result"></div>
-
-<script>
-const API_URL = "https://literalistically-superuniversal-estell.ngrok-free.dev/api";
-
-async function createRequest() {
-    const user = document.getElementById("username").value.trim();
-    if (!user) {
-        alert("กรุณากรอกยูสเซอร์เนม");
-        return;
-    }
-
-    const payload = {
-        action: "create_request",
-        secret: "yahari",
-        username: user,
-        baseAmount: 100
-    };
-
+app.post("/api", async (req, res) => {
     try {
-        let response = await fetch(API_URL, {
+        const response = await fetch(API_URL, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload)
+            body: JSON.stringify(req.body)
         });
 
-        let data = await response.json();
+        const data = await response.json();
+        res.json(data);
 
-        if (data.error) {
-            alert("Error: " + data.error);
-            return;
-        }
-
-        document.getElementById("result").style.display = "block";
-        document.getElementById("result").innerHTML = `
-            <b>ยอดที่ต้องโอน:</b> ${data.amount} บาท<br>
-            <b>ข้อความบนสลิป:</b> ${data.id}<br><br>
-            <b>โอนไปที่เบอร์:</b> 0922503869<br>
-            <img src="https://promptpay.io/0922503869/${data.amount}.png" width="200">
-        `;
     } catch (err) {
-        alert("ระบบผิดพลาด: " + err.message);
+        res.json({ error: err.message });
     }
-}
-</script>
+});
 
-</body>
-</html>
-
-
+app.listen(8888, () =>
+    console.log("Proxy running on http://localhost:8888/api")
+);
