@@ -1,121 +1,154 @@
 <!DOCTYPE html>
 <html lang="th">
 <head>
-<meta charset="UTF-8">
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>เติมเครดิตอัตโนมัติ</title>
 <style>
-    body {
-        font-family: Arial, sans-serif;
-        padding: 20px;
-        max-width: 400px;
-        margin: auto;
-        text-align: center;
-    }
-    input, button {
-        width: 100%;
-        padding: 10px;
-        margin: 10px 0;
-        font-size: 16px;
-    }
-    #preview {
-        background: #f5f5f5;
-        padding: 10px;
-        border-radius: 5px;
-        margin-top: 10px;
-        display: none;
-        text-align: left;
-    }
-    #result {
-        padding: 15px;
-        margin-top: 15px;
-        border: 1px solid #ccc;
-        display: none;
-        text-align: left;
-    }
+  :root{--primary:#3b87f9;--muted:#f5f6f8;--card:#fff;--text:#222}
+  body{font-family:Inter,Arial,sans-serif;background:#f0f2f5;color:var(--text);margin:0;padding:30px;display:flex;align-items:flex-start;justify-content:center;min-height:100vh}
+  .wrap{width:420px;max-width:95%}
+  h1{font-size:20px;margin:6px 0 18px;text-align:center}
+  label{display:block;font-size:13px;margin:8px 0 6px}
+  input[type="text"],input[type="number"]{
+    width:100%;padding:12px;border:1px solid #d7dbe0;border-radius:6px;background:#fff;box-sizing:border-box;font-size:15px;
+  }
+  .row{margin:10px 0}
+  .preview{background:var(--muted);padding:12px;border-radius:8px;margin:12px 0;display:none}
+  .btn{
+    width:100%;padding:12px;background:transparent;border:2px solid #c6cdd9;border-radius:8px;font-size:16px;cursor:pointer;
+  }
+  .btn.primary{background:var(--primary);color:#fff;border-color:var(--primary)}
+  #result{display:none;margin-top:14px;padding:14px;border-radius:8px;background:var(--card);border:1px solid #e3e6ea}
+  .muted{color:#666;font-size:14px}
+  .qr{display:block;margin-top:10px;max-width:220px}
+  .small{font-size:13px;color:#444;margin-top:6px}
+  .note{font-size:13px;color:#8a8f96;margin-top:10px;text-align:center}
 </style>
 </head>
 <body>
+  <div class="wrap">
+    <h1>เติมเครดิตอัตโนมัติ</h1>
 
-<h2>เติมเครดิตอัตโนมัติ</h2>
+    <label for="username">ยูสเซอร์เนม</label>
+    <input id="username" type="text" placeholder="กรอกยูสเซอร์ เช่น user001">
 
-<label>ยูสเซอร์เนม:</label>
-<input id="username" type="text" placeholder="กรอกยูสเซอร์">
+    <label for="amount">จำนวนเงินที่ต้องการเติม (บาท)</label>
+    <input id="amount" type="number" min="1" placeholder="พิมพ์จำนวน เช่น 150" oninput="updatePreview()">
 
-<label>จำนวนเงินที่ต้องการเติม:</label>
-<input id="amount" type="number" placeholder="กรอกจำนวนเงิน" oninput="updatePreview()">
+    <div id="preview" class="preview">
+      <div class="muted"><strong>สรุปยอดของคุณ</strong></div>
+      <div class="small">จำนวนเงิน: <span id="prevAmount">0</span> บาท</div>
+      <div class="small">ยอดรวมที่ต้องโอน: <span id="prevTotal">0</span> บาท</div>
+    </div>
 
-<div id="preview">
-    <b>สรุปยอดของคุณ:</b><br>
-    จำนวนเงิน: <span id="prevAmount">0</span> บาท<br>
-    ยอดรวมที่ต้องโอน: <span id="prevTotal">0</span> บาท
-</div>
+    <div class="row">
+      <button id="btnCreate" class="btn primary" onclick="createRequest()">สร้างยอดพร้อมโอน</button>
+    </div>
 
-<button onclick="createRequest()">สร้างยอดพร้อมโอน</button>
+    <div id="result"></div>
 
-<div id="result"></div>
+    <div class="note">ระบบเชื่อมต่อผ่าน proxy (ngrok) — ตรวจสอบให้แน่ใจว่า server &amp; ngrok รันอยู่</div>
+  </div>
 
 <script>
+/* ====== แก้ URL นี้เป็นของมึง ======
+   ถ้าใช้ ngrok แบบตัวอย่าง: https://xxxxx.ngrok-free.dev/api
+   หรือถ้าเรียกตรง localhost (สำหรับทดสอบ) ให้เปลี่ยนเป็น http://localhost:8888/api
+*/
+const API_URL = "https://literalistically-superuniversal-estell.ngrok-free.dev";
 
-// URL API NGROK
-const API_URL = "https://literalistically-superuniversal-estell.ngrok-free.dev/api";
-
-// อัปเดต preview แบบ real-time
-function updatePreview() {
-    const amount = document.getElementById("amount").value;
-
-    if (!amount || amount <= 0) {
-        document.getElementById("preview").style.display = "none";
-        return;
-    }
-
-    document.getElementById("preview").style.display = "block";
-    document.getElementById("prevAmount").innerText = amount;
-    document.getElementById("prevTotal").innerText = amount;
+/* ฟังก์ชันอัปเดตพรีวิว */
+function updatePreview(){
+  const a = Number(document.getElementById("amount").value || 0);
+  if(!a || a <= 0){
+    document.getElementById("preview").style.display = "none";
+    return;
+  }
+  document.getElementById("preview").style.display = "block";
+  document.getElementById("prevAmount").innerText = a;
+  document.getElementById("prevTotal").innerText = a;
 }
 
-async function createRequest() {
-    const user = document.getElementById("username").value.trim();
-    const amount = document.getElementById("amount").value.trim();
+/* สร้างคำขอไปยัง proxy -> google script */
+async function createRequest(){
+  const btn = document.getElementById("btnCreate");
+  const user = document.getElementById("username").value.trim();
+  const amountRaw = document.getElementById("amount").value;
+  const amount = Number(amountRaw);
 
-    if (!user || !amount) {
-        alert("กรุณากรอกข้อมูลให้ครบ");
-        return;
-    }
+  if(!user){
+    alert("กรุณากรอกยูสเซอร์เนม");
+    return;
+  }
+  if(!amount || amount <= 0){
+    alert("กรุณากรอกจำนวนเงินให้ถูกต้อง (มากกว่า 0)");
+    return;
+  }
 
-    const payload = {
-        action: "create_request",
-        secret: "yahari",
-        username: user,
-        amount: Number(amount)  // ใช้แบบตรงๆ
-    };
+  // ปิดปุ่มกันกดซ้ำ
+  btn.disabled = true;
+  btn.innerText = "กำลังสร้าง...";
 
+  const payload = {
+    action: "create_request",
+    secret: "yahari",
+    username: user,
+    amount: amount   // ส่งจำนวนเงินตรงๆ ให้ Google Script รับ
+  };
+
+  try {
+    const resp = await fetch(API_URL, {
+      method: "POST",
+      headers: {"Content-Type":"application/json"},
+      body: JSON.stringify(payload)
+    });
+
+    // ถ้า response ไม่ใช่ JSON ได้ error ชัดเจน
+    const text = await resp.text();
+    let data;
     try {
-        let response = await fetch(API_URL, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload)
-        });
-
-        let data = await response.json();
-
-        if (data.error) {
-            alert("Error: " + data.error);
-            return;
-        }
-
-        document.getElementById("result").style.display = "block";
-        document.getElementById("result").innerHTML = `
-            <b>ยอดที่ต้องโอน:</b> ${data.amount} บาท<br>
-            <b>ข้อความบนสลิป:</b> ${data.id}<br><br>
-            <b>โอนไปที่เบอร์:</b> 0922503869<br>
-            <img src="https://promptpay.io/0922503869/${data.amount}.png" width="200">
-        `;
-    } catch (err) {
-        alert("ระบบผิดพลาด: " + err.message);
+      data = JSON.parse(text);
+    } catch(err) {
+      throw new Error("Server ตอบกลับไม่ใช่ JSON: " + (text.slice(0,250) || "[empty]"));
     }
+
+    if(data.error){
+      throw new Error(data.error);
+    }
+
+    // แสดงผล
+    showResult(data);
+
+  } catch (err) {
+    alert("เกิดข้อผิดพลาด: " + err.message);
+    console.error(err);
+  } finally {
+    btn.disabled = false;
+    btn.innerText = "สร้างยอดพร้อมโอน";
+  }
 }
 
-</script>
+/* แสดงผลในหน้า */
+function showResult(data){
+  const el = document.getElementById("result");
+  // ป้องกัน data.amount เป็น undefined/null
+  const amount = (data && (typeof data.amount === "number" || typeof data.amount === "string")) ? data.amount : "ไม่ระบุ";
+  const id = data && data.id ? data.id : "-";
+  const phone = "0922503869"; // เปลี่ยนได้ตามต้องการ
 
+  el.style.display = "block";
+  el.innerHTML = `
+    <div style="font-weight:700;margin-bottom:6px">ยอดที่ต้องโอน: ${amount} บาท</div>
+    <div class="small">ข้อความบนสลิป: <strong>${id}</strong></div>
+    <div class="small" style="margin-top:8px">โอนไปที่เบอร์: <strong>${phone}</strong></div>
+    <div style="margin-top:10px">
+      <img class="qr" src="https://promptpay.io/${phone}/${amount}.png" alt="QR PromptPay">
+    </div>
+  `;
+  // เลื่อนจอให้เห็นผล
+  el.scrollIntoView({behavior:"smooth"});
+}
+</script>
 </body>
 </html>
