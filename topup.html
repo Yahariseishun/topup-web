@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<title>เติมเครดิตอัตโนมัติ</title>
+<style>
+    body {
+        font-family: Arial, sans-serif;
+        padding: 20px;
+        max-width: 400px;
+        margin: auto;
+    }
+    input, button {
+        width: 100%;
+        padding: 10px;
+        margin: 10px 0;
+        font-size: 16px;
+    }
+    #result {
+        padding: 15px;
+        margin-top: 15px;
+        border: 1px solid #ccc;
+        display: none;
+    }
+</style>
+</head>
+<body>
+
+<h2>เติมเครดิตอัตโนมัติ</h2>
+
+<label>ยูสเซอร์เนม:</label>
+<input id="username" type="text" placeholder="กรอกยูสเซอร์">
+
+<button onclick="createRequest()">สร้างยอดพร้อมโอน</button>
+
+<div id="result"></div>
+
+<script>
+const API_URL = "https://script.google.com/macros/s/AKfycbyM7Dx068R5wFvXoTwF0hFTtk739YUDu3wgFaadgHK2U1qtJV4aFDkOkIv6PI8K41FW/exec";
+
+async function createRequest() {
+    const user = document.getElementById("username").value.trim();
+    if (!user) {
+        alert("กรุณากรอกยูสเซอร์เนม");
+        return;
+    }
+
+    let response = await fetch(API_URL, {
+        method: "POST",
+        body: JSON.stringify({
+            action: "create_request",
+            secret: "yahari",
+            username: user,
+            baseAmount: 100
+        })
+    });
+
+    let data = await response.json();
+
+    if (data.error) {
+        alert("Error: " + data.error);
+        return;
+    }
+
+    document.getElementById("result").style.display = "block";
+    document.getElementById("result").innerHTML = `
+        <b>ยอดที่ต้องโอน:</b> ${data.amount} บาท<br>
+        <b>ข้อความบนสลิป:</b> ${data.id}<br><br>
+        <b>โอนไปที่เบอร์:</b> 0922503869<br>
+        <img src="https://promptpay.io/0922503869/${data.amount}.png" width="200">
+    `;
+}
+</script>
+
+</body>
+</html>
