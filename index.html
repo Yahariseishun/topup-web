@@ -9,6 +9,7 @@
         padding: 20px;
         max-width: 400px;
         margin: auto;
+        text-align: center;
     }
     input, button {
         width: 100%;
@@ -21,6 +22,7 @@
         margin-top: 15px;
         border: 1px solid #ccc;
         display: none;
+        text-align: left;
     }
 </style>
 </head>
@@ -36,7 +38,8 @@
 <div id="result"></div>
 
 <script>
-const API_URL = "https://script.google.com/macros/s/AKfycby9i1uyed19WiNwr91mbIdTjVyvmuuDxLqGaCpLZc6cXC__7WdCPhBaVKsUwAO0CDxw/exec";
+// ★★ ใช้ API ของคุณ ★★
+const API_URL = "https://script.google.com/macros/s/AKfycbwQrMddICJXl_83X8TLe4hTD0LBcrbwRRp5hMHj9GNr8pcM1Oqm0ZGxWtk4H-6dFUXc/exec";
 
 async function createRequest() {
     const user = document.getElementById("username").value.trim();
@@ -45,39 +48,45 @@ async function createRequest() {
         return;
     }
 
-    let response = await fetch(API_URL, {
-        method: "POST",
-        body: JSON.stringify({
-            action: "create_request",
-            secret: "yahari",
-            username: user,
-            baseAmount: 100
-        })
-    });
+    const payload = {
+        action: "create_request",
+        secret: "yahari",
+        username: user,
+        baseAmount: 100
+    };
 
-    let data = await response.json();
+    try {
+        let response = await fetch(API_URL, {
+            method: "POST",
+            mode: "no-cors",  // ★ ทำให้ไม่ติด CORS บน GitHub Pages
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+        });
 
-    if (data.error) {
-        alert("Error: " + data.error);
-        return;
+        // GitHub Pages + no-cors จะไม่ได้ response จริง
+        // ดังนั้นให้ไปดึงข้อมูลผ่าน GET แทน
+        let checkURL = `${API_URL}?action=create_request&secret=yahari&username=${user}&baseAmount=100`;
+
+        let final = await fetch(checkURL);
+        let data = await final.json();
+
+        if (data.error) {
+            alert("Error: " + data.error);
+            return;
+        }
+
+        document.getElementById("result").style.display = "block";
+        document.getElementById("result").innerHTML = `
+            <b>ยอดที่ต้องโอน:</b> ${data.amount} บาท<br>
+            <b>ข้อความบนสลิป:</b> ${data.id}<br><br>
+            <b>โอนไปที่เบอร์:</b> 0922503869<br>
+            <img src="https://promptpay.io/0922503869/${data.amount}.png" width="200">
+        `;
+    } catch (err) {
+        alert("ระบบผิดพลาด: " + err.message);
     }
-
-    document.getElementById("result").style.display = "block";
-    document.getElementById("result").innerHTML = `
-        <b>ยอดที่ต้องโอน:</b> ${data.amount} บาท<br>
-        <b>ข้อความบนสลิป:</b> ${data.id}<br><br>
-        <b>โอนไปที่เบอร์:</b> 0922503869<br>
-        <img src="https://promptpay.io/0922503869/${data.amount}.png" width="200">
-    `;
 }
 </script>
 
 </body>
-
 </html>
-
-
-
-
-
-
