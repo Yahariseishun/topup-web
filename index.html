@@ -73,4 +73,14 @@ async function createRequest() {
         document.getElementById("result").innerHTML = `
             <b>ยอดที่ต้องโอน:</b> ${data.amount} บาท<br>
             <b>ข้อความบนสลิป:</b> ${data.id}<br><br>
-            <b>โอนไปที่เบอร์:</b> 092250
+            <b>โอนไปที่เบอร์:</b> 0922503869<br>
+            <img src="https://promptpay.io/0922503869/${data.amount}.png" width="200">
+        `;
+    } catch (err) {
+        alert("ระบบผิดพลาด: " + err.message);
+    }
+}
+</script>
+
+</body>
+</html>
